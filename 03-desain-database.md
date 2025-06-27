@@ -25,7 +25,8 @@
 |--------------------------------------|------------------------------------------------------------------------------------|
 | [`students`](#tabel%3A-students)        | Menyimpan data lengkap siswa, termasuk kelas dan jurusan terpisah                 |
 | [`teachers`](#tabel%3A-teachers)        | Menyimpan data guru yang menggunakan fingerprint                                  |
-| [`attendances`](#tabel%3A-attendances)  | Mencatat kehadiran harian siswa dan guru, termasuk waktu masuk/keluar, status     |
+| [`student_attendances`](#tabel%3A-student_attendances)  | Mencatat kehadiran harian siswa secara terpisah, termasuk waktu masuk/keluar, status     |
+| [`teacher_attendances`](#tabel%3A-teacher_attendances)  | Mencatat kehadiran harian guru secara terpisah, termasuk waktu masuk/keluar, status     |
 | [`student_leave_requests`](#tabel%3A-student_leave_requests) | Menyimpan pengajuan izin siswa dari Google Form                        |
 | [`notifications`](#tabel%3A-notifications) | Menyimpan log pengiriman pesan WA ke orang tua, wali kelas, dan kesiswaan      |
 | [`discipline_rankings`](#tabel%3A-discipline_rankings) | Peringkat disiplin bulanan siswa                                  |
@@ -38,6 +39,7 @@
 | [`devices`](#tabel%3A-devices)          | Info perangkat fingerprint (IP, status, lokasi)                                  |
 | [`attendance_rules`](#tabel%3A-attendance_rules) | Rentang jam masuk dan pulang untuk absensi                           |
 | [`scan_logs`](#tabel%3A-scan_logs) | Audit log aktivitas scan sidik jari siswa                            |
+| [`classes`](#tabel%3A-classes) | Kelas siswa                            |
 
 
 ## 2. Struktur dan Relasi Detail
@@ -77,7 +79,7 @@ Digunakan sebagai acuan utama untuk:
 | `id`              | BIGINT      | ID unik siswa                            | PK                   |
 | `name`            | VARCHAR     | Nama lengkap siswa                       |                      |
 | `nis`             | VARCHAR     | Nomor Induk Siswa                        | UNIQUE               |
-| `class`           | VARCHAR     | Kelas siswa (contoh: X, XI, XII)         |                      |
+| `class_id`        | BIGINT      | ID kelas siswa (FK → `classes.id`)       |
 | `major`           | VARCHAR     | Jurusan siswa (contoh: RPL, TKJ)         |                      |
 | `gender`          | ENUM        | Jenis kelamin siswa                      | ENUM (`L`, `P`)      |
 | `fingerprint_id`  | VARCHAR     | ID fingerprint (dari mesin absensi)      |                      |
@@ -107,31 +109,53 @@ Biasanya digunakan jika guru juga diminta melakukan absensi secara digital.
 | `created_at`     | TIMESTAMP   | Tanggal data dibuat                            |              |
 | `updated_at`     | TIMESTAMP   | Tanggal data diperbarui terakhir               |              |
 ---
-### Tabel: `attendances`
 
-Tabel ini merupakan **inti sistem absensi**. Menyimpan semua aktivitas scan masuk dan keluar, serta status kehadiran.
+### Tabel: `student_attendances`
 
-**Fungsi-fungsi penting:**
-- Menyimpan kehadiran harian siswa dan guru
-- Menentukan status secara otomatis: `hadir`, `terlambat`, `tidak_hadir`, `izin`
-- Mengambil data dari scan fingerprint, webcam (foto), dan IP perangkat
-- Digunakan untuk rekap kehadiran harian, bulanan, dan grafik
+Tabel ini menyimpan catatan absensi khusus untuk siswa.
+
+| Kolom            | Tipe Data | Keterangan                                                 | Sifat Khusus     |
+|------------------|-----------|-------------------------------------------------------------|------------------|
+| `id`             | BIGINT    | ID unik absensi                                            | PK               |
+| `student_id`     | BIGINT    | ID siswa yang absen                                        | FK → `students.id` |
+| `date`           | DATE      | Tanggal absensi                                            | Required         |
+| `time_in`        | TIME      | Waktu scan masuk                                           | Optional         |
+| `time_out`       | TIME      | Waktu scan keluar                                          | Optional         |
+| `status`         | ENUM      | `hadir`, `terlambat`, `tidak_hadir`, `izin`               | Otomatis         |
+| `is_late`        | BOOLEAN   | Apakah siswa terlambat                                     | Otomatis         |
+| `photo_in`       | VARCHAR   | Foto hasil verifikasi absensi                              | Optional         |
+| `device_id`  | BIGINT    | ID perangkat yang digunakan untuk scan         | FK → `devices.id`             |
+| `created_at`     | TIMESTAMP | Waktu data dicatat                                         | Otomatis         |
+| `updated_at`     | TIMESTAMP | Waktu terakhir data diubah                                 | Otomatis         |
+
+---
+
+### Tabel: `teacher_attendances`
+
+Tabel ini menyimpan catatan absensi khusus untuk guru/pengajar.
+
+| Kolom            | Tipe Data | Keterangan                                                 | Sifat Khusus     |
+|------------------|-----------|-------------------------------------------------------------|------------------|
+| `id`             | BIGINT    | ID unik absensi                                            | PK               |
+| `teacher_id`     | BIGINT    | ID guru yang absen                                         | FK → `teachers.id` |
+| `date`           | DATE      | Tanggal absensi                                            | Required         |
+| `time_in`        | TIME      | Waktu scan masuk                                           | Optional         |
+| `time_out`       | TIME      | Waktu scan keluar                                          | Optional         |
+| `status`         | ENUM      | `hadir`, `terlambat`, `tidak_hadir`, `izin`               | Otomatis         |
+| `is_late`        | BOOLEAN   | Apakah guru terlambat                                      | Otomatis         |
+| `photo_in`       | VARCHAR   | Foto hasil verifikasi absensi                              | Optional         |
+| `device_id`  | BIGINT    | ID perangkat yang digunakan untuk scan         | FK → `devices.id`             |
+| `created_at`     | TIMESTAMP | Waktu data dicatat                                         | Otomatis         |
+| `updated_at`     | TIMESTAMP | Waktu terakhir data diubah                                 | Otomatis         |
 
 
-| Kolom         | Tipe Data | Keterangan                                                  | Sifat Khusus  |
-|---------------|-----------|--------------------------------------------------------------|----------------|
-| `id`          | BIGINT    | ID unik absensi                                              | PK             |
-| `user_id`     | BIGINT    | ID dari siswa atau guru yang absen                          | FK → `students.id` / `teachers.id` |
-| `user_type`   | ENUM      | Menandakan tipe user: `student` atau `teacher`              | ENUM           |
-| `date`        | DATE      | Tanggal kehadiran                                            |                |
-| `time_in`     | TIME      | Waktu masuk                                                 |                |
-| `time_out`    | TIME      | Waktu pulang                                                |                |
-| `status`      | ENUM      | Status kehadiran: `hadir`, `terlambat`, `tidak_hadir`, `izin` | ENUM        |
-| `is_late`     | BOOLEAN   | Penanda apakah siswa telat                                  |                |
-| `photo_in`    | VARCHAR   | Path foto saat scan fingerprint                             |                |
-| `device_ip`   | VARCHAR   | IP dari alat fingerprint yang digunakan                     |                |
-| `created_at`  | TIMESTAMP | Waktu pencatatan dibuat                                     |                |
-| `updated_at`  | TIMESTAMP | Waktu pencatatan terakhir diperbarui                        |                |
+#### Catatan Desain:
+
+- Tabel absensi dipisahkan berdasarkan jenis pengguna demi menjaga validitas relasi (`FK`)
+- Memudahkan filter dan laporan per jenis user
+- Jika ingin rekap gabungan, gunakan `UNION` SQL atau `merge()` Laravel Collection
+
+
 ---
 ### Tabel: `student_leave_requests`
 Tabel ini menyimpan data izin siswa yang diajukan melalui Google Form, WhatsApp, atau cara lain.
@@ -352,44 +376,66 @@ Tabel ini menyimpan daftar perangkat fingerprint yang terhubung ke sistem.
 
 ---
 ### Tabel: `attendance_rules`
-Tabel ini menyimpan aturan waktu masuk dan pulang dalam bentuk rentang waktu.
+
+Tabel ini menyimpan **aturan jam masuk dan pulang** untuk setiap kelas. Aturan ini bisa berlaku rutin berdasarkan **hari dalam seminggu** atau berlaku khusus pada **tanggal tertentu** seperti saat ujian atau kegiatan sekolah.
 
 **Fungsi-fungsi penting:**
-- Digunakan sistem untuk menentukan status hadir, terlambat, tidak hadir
-- Jam masuk dan jam pulang tidak ditulis dalam waktu tetap, tapi dalam **range**
-- Bisa digunakan untuk membuat pengaturan waktu berbeda untuk shift atau kelas tertentu
-- Sistem bisa menyesuaikan logika absensinya berdasarkan aturan ini
+- Menentukan status kehadiran (`hadir`, `terlambat`, `tidak_hadir`) secara otomatis
+- Mendukung jadwal berbeda per kelas dan hari (misalnya shift Jumat)
+- Mendukung aturan override di tanggal tertentu (misalnya hari ujian)
+- Dihubungkan langsung ke tabel `classes` melalui `class_id`
 
-
-| Kolom           | Tipe Data | Keterangan                                              | Sifat Khusus |
-|------------------|-----------|----------------------------------------------------------|--------------|
-| `id`             | BIGINT    | ID aturan absensi                                       | PK           |
-| `time_in_start`  | TIME      | Batas awal absensi masuk (contoh: 06:30)                |              |
-| `time_in_end`    | TIME      | Batas akhir absensi masuk (contoh: 07:30)               |              |
-| `time_out_start` | TIME      | Batas awal absensi pulang (contoh: 13:00)               |              |
-| `time_out_end`   | TIME      | Batas akhir absensi pulang (contoh: 15:00)              |              |
-| `created_at`     | TIMESTAMP | Tanggal aturan dibuat                                   |              |
+| Kolom            | Tipe Data | Keterangan                                                                 | Sifat Khusus                  |
+|------------------|-----------|------------------------------------------------------------------------------|-------------------------------|
+| `id`             | BIGINT    | ID unik aturan                                                              | PK                            |
+| `class_id`       | BIGINT    | ID kelas yang aturan ini berlaku untuk                                      | FK → `classes.id`             |
+| `day_of_week`    | ENUM      | Hari dalam minggu: `monday` sampai `sunday`                                  | Optional                      |
+| `date_override`  | DATE      | Jika diisi, aturan ini hanya berlaku pada tanggal tersebut                   | Optional                      |
+| `time_in_start`  | TIME      | Waktu paling awal absensi masuk diterima                                   | Required                      |
+| `time_in_end`    | TIME      | Batas akhir absensi masuk tanpa dianggap terlambat                         | Required                      |
+| `time_out_start` | TIME      | Waktu paling awal absensi pulang diterima                                  | Required                      |
+| `time_out_end`   | TIME      | Batas akhir absensi pulang                                                  | Required                      |
+| `description`    | TEXT      | Penjelasan tambahan (contoh: Jadwal Ujian, Shift Jumat)                     | Optional                      |
+| `created_at`     | TIMESTAMP | Waktu data dibuat    
 ---
 ### Tabel: `scan_logs`
 
-Tabel ini digunakan untuk mencatat **aktivitas setiap kali sidik jari di-scan**.
+Tabel ini mencatat setiap aktivitas scan fingerprint yang dilakukan oleh pengguna, baik siswa maupun guru.  
+Berfungsi sebagai **log jejak absensi**, mencatat siapa saja yang melakukan scan, apakah berhasil, dan dari alat mana.
 
 **Fungsi-fungsi penting:**
-- Mencatat jejak scan sukses atau gagal
-- Menyimpan waktu, tipe scan (`scan_in` atau `scan_out`), dan IP alat
-- Digunakan untuk audit dan troubleshooting sistem fingerprint
-- Bermanfaat jika absensi tidak tercatat dan perlu dicek manual
+- Audit sidik jari: mencatat waktu, IP alat, dan hasil scan
+- Digunakan untuk troubleshooting jika terjadi absensi gagal atau tidak tercatat
+- Tidak terkait langsung ke `students` atau `teachers`, tapi bisa dicocokkan melalui `fingerprint_id`
 
+| Kolom            | Tipe Data | Keterangan                                               | Sifat Khusus |
+|------------------|-----------|-----------------------------------------------------------|--------------|
+| `id`             | BIGINT    | ID unik log                                              | PK           |
+| `fingerprint_id` | VARCHAR   | ID fingerprint yang digunakan saat scan                  | Required     |
+| `event_type`     | ENUM      | `scan_in` atau `scan_out`                                | Required     |
+| `scanned_at`     | TIMESTAMP | Waktu saat sidik jari di-scan                            | Required     |
+| `device_id`  | BIGINT    | ID alat fingerprint yang digunakan saat scan   | FK → `devices.id`             |
+| `result`         | ENUM      | `success` atau `fail` — menunjukkan apakah scan berhasil | Required     |
 
-| Kolom         | Tipe Data | Keterangan                                              | Sifat Khusus       |
-|---------------|-----------|----------------------------------------------------------|--------------------|
-| `id`          | BIGINT    | ID log aktivitas scan                                   | PK                 |
-| `student_id`  | BIGINT    | ID siswa yang melakukan scan                            | FK → `students.id` |
-| `event_type`  | ENUM      | Jenis event: `scan_in`, `scan_out`                      | ENUM               |
-| `scanned_at`  | TIMESTAMP | Waktu scan dilakukan                                    |                    |
-| `device_ip`   | VARCHAR   | IP perangkat yang digunakan                             |                    |
-| `result`      | ENUM      | Hasil scan: `success`, `fail`                          | ENUM               |
+---
 
+###  Tabel: `classes`
+
+Tabel ini menyimpan daftar kelas secara terstruktur dan konsisten.  
+Fungsinya menggantikan penggunaan `class` dalam bentuk teks di berbagai tabel seperti `students`, `attendance_rules`, dan lainnya.
+
+**Fungsi-fungsi penting:**
+- Menghindari penulisan nama kelas yang tidak konsisten
+- Menyediakan data kelas untuk dropdown, filter, dan relasi
+- Siap untuk pengembangan fitur berdasarkan jurusan atau jenjang
+
+| Kolom       | Tipe Data | Keterangan                                         | Sifat Khusus |
+|-------------|-----------|-----------------------------------------------------|--------------|
+| `id`        | BIGINT    | ID unik kelas                                       | PK           |
+| `name`      | VARCHAR   | Nama kelas lengkap (misal: XI RPL 1)                | UNIQUE       |
+| `level`     | VARCHAR   | Jenjang kelas (X, XI, XII)                          |              |
+| `major`     | VARCHAR   | Jurusan kelas (RPL, TKR, TITL, dll)                 |              |
+| `created_at`| TIMESTAMP | Waktu data kelas dibuat                             |              |
 
 
 ### 📌 ENUM yang digunakan:
@@ -402,72 +448,76 @@ Tabel ini digunakan untuk mencatat **aktivitas setiap kali sidik jari di-scan**.
 - `result`: success, fail
 
 
+---
 
 ## 4. Penjelasan Relasi Antar Tabel
 
-
-### 🔗 `students` ↔ `attendances`
-- **Relasi:** Satu siswa dapat memiliki banyak catatan absensi.
-- **Koneksi melalui:** `attendances.user_id` + `user_type = 'student'`
-- **Fungsi:** Menghubungkan identitas siswa ke histori kehadiran harian.
+Bagian ini menjelaskan keterkaitan antar tabel dalam sistem absensi fingerprint, baik yang bersifat **relasi langsung (FK)** maupun **relasi logika bisnis**.
 
 ---
 
-### 🔗 `teachers` ↔ `attendances`
-- **Relasi:** Satu guru juga dapat memiliki catatan absensi.
-- **Koneksi melalui:** `attendances.user_id` + `user_type = 'teacher'`
-- **Fungsi:** Mendukung sistem absensi fingerprint untuk guru.
+### 🎓 Relasi Terkait Siswa
+
+| Relasi                                              | Keterangan                                                                 |
+|------------------------------------------------------|-----------------------------------------------------------------------------|
+| `students.class_id → classes.id`                    | Menyambungkan siswa ke kelas tertentu                                      |
+| `student_attendances.student_id → students.id`      | Mencatat kehadiran harian siswa                                            |
+| `student_attendances.device_id → devices.id`        | Menyimpan info alat fingerprint yang digunakan siswa                       |
+| `student_leave_requests.student_id → students.id`   | Menyimpan data izin siswa                                                  |
+| `discipline_rankings.student_id → students.id`      | Menghitung peringkat disiplin siswa dari data absensi                      |
+| `notifications.student_id → students.id`            | Menyimpan notifikasi ke orang tua, wali kelas, dan kesiswaan               |
 
 ---
 
-### 🔗 `students` ↔ `student_leave_requests`
-- **Relasi:** Satu siswa bisa mengajukan banyak izin.
-- **Koneksi melalui:** `student_leave_requests.student_id`
-- **Fungsi:** Menyimpan data izin sebagai pengecualian dari kehadiran reguler.
+### 👨‍🏫 Relasi Terkait Guru
+
+| Relasi                                              | Keterangan                                                                 |
+|------------------------------------------------------|-----------------------------------------------------------------------------|
+| `teacher_attendances.teacher_id → teachers.id`      | Mencatat kehadiran harian guru                                             |
+| `teacher_attendances.device_id → devices.id`        | Menyimpan info alat fingerprint yang digunakan guru                        |
 
 ---
 
-### 🔗 `students` ↔ `notifications`
-- **Relasi:** Satu siswa bisa memiliki banyak notifikasi.
-- **Koneksi melalui:** `notifications.student_id`
-- **Fungsi:** Menyimpan riwayat pesan WA yang dikirim oleh sistem.
+### 🏫 Relasi Terkait Kelas & Aturan
+
+| Relasi                                            | Keterangan                                                                 |
+|---------------------------------------------------|------------------------------------------------------------------------------|
+| `attendance_rules.class_id → classes.id`         | Menentukan aturan jam masuk/pulang untuk kelas tertentu                    |
 
 ---
 
-### 🔗 `students` ↔ `discipline_rankings`
-- **Relasi:** Satu siswa memiliki satu rekap per bulan.
-- **Koneksi melalui:** `discipline_rankings.student_id`
-- **Fungsi:** Menilai kedisiplinan bulanan berdasarkan data kehadiran.
+### 📟 Relasi Terkait Perangkat (Devices)
+
+| Relasi                                  | Keterangan                                                                    |
+|-----------------------------------------|--------------------------------------------------------------------------------|
+| `scan_logs.device_id → devices.id`      | Menyimpan data alat fingerprint yang melakukan scan (baik siswa maupun guru)  |
 
 ---
 
-### 🔗 `students` ↔ `scan_logs`
-- **Relasi:** Satu siswa bisa memiliki banyak log scan fingerprint.
-- **Koneksi melalui:** `scan_logs.student_id`
-- **Fungsi:** Audit aktivitas scan untuk validasi dan troubleshooting.
+### 🔐 Relasi Terkait Role & User Akses
+
+| Relasi                                  | Keterangan                                                                 |
+|-----------------------------------------|------------------------------------------------------------------------------|
+| `users → model_has_roles`              | Menyambungkan akun user ke role tertentu (admin/operator)                  |
+| `roles → role_has_permissions`         | Menentukan hak akses per role                                              |
+| `permissions → model_has_permissions`  | Menyambungkan permission langsung ke user (jika dibutuhkan)                |
 
 ---
 
-### 🔗 `users` ↔ `roles`, `permissions`
-- **Relasi:**
-  - `model_has_roles`: menghubungkan user ke role
-  - `model_has_permissions`: menghubungkan user ke permission langsung
-  - `role_has_permissions`: menghubungkan role ke daftar permission
-- **Fungsi:** Menyusun sistem hak akses berbasis peran.
+### 🔍 Relasi Logika Bisnis (Non-FK)
+
+| Kolom / Tabel             | Penjelasan                                                                 |
+|---------------------------|-----------------------------------------------------------------------------|
+| `scan_logs.fingerprint_id`| Dicocokkan ke `students.fingerprint_id` atau `teachers.fingerprint_id`    |
+| `photo_in`                | Disimpan sebagai path file hasil verifikasi absensi (tidak terhubung ke storage table) |
 
 ---
 
-### 🔗 `devices` ↔ `attendances` / `scan_logs`
-- **Relasi tidak langsung:** melalui kolom `device_ip`
-- **Fungsi:** Mengetahui aktivitas scan berasal dari perangkat mana.
+### 📌 Catatan:
 
----
-
-### 🔗 `attendance_rules`, `settings`, `backups`
-- **Tidak memiliki FK langsung**, namun:
-  - `attendance_rules`: dipakai untuk menentukan status kehadiran otomatis
-  - `settings`: menyimpan konfigurasi sistem (jam, WA API, countdown, dsb)
-  - `backups`: mencatat file cadangan yang disiapkan untuk restore otomatis
+- Tabel `student_attendances` dan `teacher_attendances` dipisah untuk menjaga struktur FK yang kuat dan jelas.
+- Tabel `scan_logs` digunakan sebagai log universal, tidak terikat langsung ke entitas user, melainkan menggunakan `fingerprint_id`.
+- Tabel `devices` berperan penting sebagai pusat referensi IP alat fingerprint.
 
 ---
 
