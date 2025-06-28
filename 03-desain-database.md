@@ -12,8 +12,9 @@
 - [09 - Wireframe](09-wireframe/README.md)
 
 ## 📚 Daftar Isi Halaman
-- [1. Struktur Tabel Utama](#1-struktur-tabel-utama)
-- [2. Relasi Antar Tabel](#2-relasi-antar-tabel)
+- [1. Ringkasan Tabel Utama](#1.-ringkasan-tabel-utama)
+- [2. Struktur dan Relasi Detail](#2.-struktur-dan-relasi-detail)
+- [3. Penjelasan Relasi Antar Tabel](#3.-penjelasan-relasi-antar-tabel)
 
 
 ## 1. Ringkasan Tabel Utama
@@ -28,6 +29,8 @@
 | [`student_attendances`](#tabel%3A-student_attendances)  | Mencatat kehadiran harian siswa secara terpisah, termasuk waktu masuk/keluar, status     |
 | [`teacher_attendances`](#tabel%3A-teacher_attendances)  | Mencatat kehadiran harian guru secara terpisah, termasuk waktu masuk/keluar, status     |
 | [`student_leave_requests`](#tabel%3A-student_leave_requests) | Menyimpan pengajuan izin siswa dari Google Form                        |
+ [`teacher_leave_requests`](#-tabel%3A-teacher_leave_requests) | Menyimpan data izin guru, baik dari Google Form maupun input manual admin.
+ [`holidays`](#tabel%3A-holidays) | Menyimpan data hari libur untuk mengatasi kesalahan perhitungan data ketika hari libur
 | [`notifications`](#tabel%3A-notifications) | Menyimpan log pengiriman pesan WA ke orang tua, wali kelas, dan kesiswaan      |
 | [`discipline_rankings`](#tabel%3A-discipline_rankings) | Peringkat disiplin bulanan siswa                                  |
 | [`users`](#tabel%3A-users)              | Akun login untuk admin, guru, dan petugas lainnya                                 |
@@ -176,6 +179,37 @@ Tabel ini menyimpan data izin siswa yang diajukan melalui Google Form, WhatsApp,
 | `via`         | ENUM      | Media pengajuan: `form_online` atau lainnya jika ditambahkan          | ENUM               |
 | `created_at`  | TIMESTAMP | Waktu pengajuan izin masuk ke sistem                                  |                    |
 ---
+
+### Tabel: `teacher_leave_requests`
+
+Tabel ini menyimpan data izin kehadiran guru yang dapat diajukan melalui form internal atau dimasukkan langsung oleh admin/operator.
+
+| Kolom          | Tipe Data | Keterangan                                                       | Sifat Khusus                  |
+|----------------|-----------|-------------------------------------------------------------------|-------------------------------|
+| `id`           | BIGINT    | ID unik izin guru                                                | PK                            |
+| `teacher_id`   | BIGINT    | ID guru yang mengajukan izin                                     | FK → `teachers.id`            |
+| `date`         | DATE      | Tanggal izin                                                     | Required                      |
+| `reason`       | TEXT      | Alasan izin                                                      | Optional                      |
+| `submitted_by` | VARCHAR   | Nama pengaju atau pencatat izin                                  | Optional                      |
+| `via`          | ENUM      | `manual` atau `internal_form`                                    | Menandai metode pengajuan     |
+| `created_at`   | TIMESTAMP | Waktu izin dicatat                                               | Otomatis                      |
+
+---
+
+### Tabel: `holidays`
+
+Tabel ini menyimpan data hari libur, baik satu hari maupun rentang libur panjang, seperti libur Idul Fitri, akhir semester, atau libur darurat.
+
+| Kolom         | Tipe Data | Keterangan                                                               | Sifat Khusus     |
+|---------------|-----------|---------------------------------------------------------------------------|------------------|
+| `id`          | BIGINT    | ID unik libur                                                            | PK               |
+| `start_date`  | DATE      | Tanggal awal libur                                                       | Required         |
+| `end_date`    | DATE      | Tanggal akhir libur (boleh sama dengan `start_date` untuk libur 1 hari)  | Required         |
+| `description` | VARCHAR   | Keterangan libur, contoh: Libur Akhir Semester                           | Required         |
+| `created_at`  | TIMESTAMP | Waktu pencatatan                                                         | Otomatis         |
+
+---
+
 ### Tabel: `notifications`
 Tabel ini menyimpan semua log pengiriman pesan WhatsApp yang dilakukan sistem.
 
@@ -354,6 +388,13 @@ Tabel ini menyimpan konfigurasi sistem dalam bentuk **key-value** yang fleksibel
 | `value`       | TEXT      | Nilai pengaturan (string atau JSON)                        |              |
 | `created_at`  | TIMESTAMP | Waktu konfigurasi disimpan                                 |              |
 
+
+📎 [Lihat daftar pengaturan lengkap →](./pengaturan-aplikasi.md)
+
+---
+
+> Semua key ini disimpan sebagai **key : value** di tabel `settings`, dan dapat dikelola melalui Panel Admin (Filament).
+
 ---
 ### Tabel: `devices`
 
@@ -450,7 +491,7 @@ Fungsinya menggantikan penggunaan `class` dalam bentuk teks di berbagai tabel se
 
 ---
 
-## 4. Penjelasan Relasi Antar Tabel
+## 3. Penjelasan Relasi Antar Tabel
 
 Bagian ini menjelaskan keterkaitan antar tabel dalam sistem absensi fingerprint, baik yang bersifat **relasi langsung (FK)** maupun **relasi logika bisnis**.
 
@@ -475,6 +516,7 @@ Bagian ini menjelaskan keterkaitan antar tabel dalam sistem absensi fingerprint,
 |------------------------------------------------------|-----------------------------------------------------------------------------|
 | `teacher_attendances.teacher_id → teachers.id`      | Mencatat kehadiran harian guru                                             |
 | `teacher_attendances.device_id → devices.id`        | Menyimpan info alat fingerprint yang digunakan guru                        |
+| `teacher_leave_requests.teacher_id → teachers.id` | Menyambungkan izin ke guru yang bersangkutan         |
 
 ---
 
