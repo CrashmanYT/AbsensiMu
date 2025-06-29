@@ -1,0 +1,236 @@
+Table students {
+  id bigint [pk]
+  name varchar
+  nis varchar [unique]
+  class_id bigint [not null, ref: > classes.id]
+  gender enum
+  fingerprint_id varchar [note: 'Indexed for faster search']
+  photo varchar
+  parent_whatsapp varchar
+  created_at timestamp
+  updated_at timestamp
+  Indexes {
+    fingerprint_id
+  }
+}
+
+Table classes {
+  id bigint [pk]
+  name varchar [unique, note: 'Contoh: XI RPL 1']
+  level varchar [note: 'X, XI, XII']
+  major varchar [note: 'RPL, TITL, TKR, TKJ']
+  homeroom_teacher_id bigint [ref: > teachers.id, note: 'Wali kelas']
+  created_at timestamp
+  updated_at timestamp
+}
+
+
+Table teachers {
+  id bigint [pk]
+  name varchar
+  nip varchar
+  fingerprint_id varchar [note: 'Indexed for faster search']
+  photo varchar
+  whatsapp_number varchar
+  created_at timestamp
+  updated_at timestamp
+  Indexes {
+    fingerprint_id
+  }
+}
+
+Table student_attendances {
+  id bigint [pk]
+  student_id bigint [not null, ref: > students.id]
+  date date
+  time_in time
+  time_out time
+  status enum [note: 'hadir, terlambat, tidak_hadir, izin']
+  photo_in varchar
+  device_id bigint [ref: > devices.id]
+  created_at timestamp
+  updated_at timestamp
+  Indexes {
+    (student_id, date) [note: 'Composite index for faster queries']
+  }
+}
+
+Table teacher_attendances {
+  id bigint [pk]
+  teacher_id bigint [not null, ref: > teachers.id]
+  date date
+  time_in time
+  time_out time
+  status enum [note: 'hadir, terlambat, tidak_hadir, izin']
+  photo_in varchar
+  device_id bigint [ref: > devices.id]
+  created_at timestamp
+  updated_at timestamp
+  Indexes {
+    (teacher_id, date) [note: 'Composite index for faster queries']
+  }
+}
+
+
+Table student_leave_requests {
+  id bigint [pk]
+  student_id bigint [not null, ref: > students.id]
+  date date
+  reason text
+  submitted_by varchar
+  via enum [note: 'form_online, manual']
+  created_at timestamp
+}
+
+Table teacher_leave_requests {
+  id bigint [pk]
+  teacher_id bigint [not null, ref: > teachers.id]
+  date date
+  reason text
+  submitted_by varchar
+  via enum [note: 'manual, internal_form']
+  created_at timestamp
+}
+
+Table holidays {
+  id bigint [pk]
+  start_date date [note: 'Tanggal mulai libur']
+  end_date date [note: 'Tanggal akhir libur (sama dengan start_date jika hanya 1 hari)']
+  description varchar [note: 'Contoh: Libur Idul Fitri, Tahun Baru']
+  created_at timestamp
+}
+
+
+
+Table notifications {
+  id bigint [pk]
+  student_id bigint [not null, ref: > students.id]
+  type enum [note: 'izin, tidak_hadir, keterlambatan, rekap']
+  recipient enum [note: 'orang_tua, wali_kelas, kesiswaan']
+  content text
+  status enum [note: 'sent, failed']
+  sent_at timestamp
+  created_at timestamp
+}
+
+Table discipline_rankings {
+  id bigint [pk]
+  student_id bigint [not null, ref: > students.id]
+  month varchar
+  total_present int
+  total_late int
+  total_absent int
+  score float
+  created_at timestamp
+  Indexes {
+    (student_id, month) [unique, note: 'Prevent duplicate rankings for a student in the same month']
+  }
+}
+
+Table users {
+  id bigint [pk]
+  name varchar
+  email varchar [unique]
+  password varchar
+  class_id bigint [ref: > classes.id, note: 'Scope for homeroom teachers']
+  whatsapp_number varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table roles {
+  id bigint [pk]
+  name varchar
+  guard_name varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table permissions {
+  id bigint [pk]
+  name varchar
+  guard_name varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table model_has_roles {
+  role_id bigint [ref: > roles.id]
+  model_type varchar
+  model_id bigint
+  
+  Indexes {
+    (role_id, model_type, model_id) [pk]
+  }
+}
+
+Table model_has_permissions {
+  permission_id bigint [ref: > permissions.id]
+  model_type varchar
+  model_id bigint
+  
+  Indexes {
+    (permission_id, model_type, model_id) [pk]
+  }
+}
+
+Table role_has_permissions {
+  permission_id bigint [ref: > permissions.id]
+  role_id bigint [ref: > roles.id]
+
+  Indexes {
+    (permission_id, role_id) [pk]
+  }
+}
+
+Table backups {
+  id bigint [pk]
+  file_path varchar
+  restored boolean
+  created_at timestamp
+}
+
+Table settings {
+  id bigint [pk]
+  key varchar [unique]
+  value text
+  created_at timestamp
+}
+
+Table devices {
+  id bigint [pk]
+  name varchar
+  ip_address varchar [unique]
+  location varchar
+  is_active boolean
+  created_at timestamp
+}
+
+Table attendance_rules {
+  id bigint [pk]
+  class_id bigint [not null, ref: > classes.id]
+  day_of_week enum [note: 'monday, tuesday, ..., sunday']
+  date_override date [note: 'Jika diisi, maka hanya berlaku di tanggal tersebut']
+  time_in_start time
+  time_in_end time
+  time_out_start time
+  time_out_end time
+  description text [note: 'Contoh: Jadwal Ujian, Shift Jumat']
+  created_at timestamp
+}
+
+Table scan_logs {
+  id bigint [pk]
+  fingerprint_id varchar [note: 'Matches students.fingerprint_id or teachers.fingerprint_id']
+  event_type enum [note: 'scan_in, scan_out']
+  scanned_at timestamp
+  device_id bigint [ref: > devices.id]
+  result enum [note: 'success, fail']
+  created_at timestamp
+  
+  Indexes {
+    fingerprint_id,
+    scanned_at
+  }
+}
+

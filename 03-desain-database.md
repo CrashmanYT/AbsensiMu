@@ -29,8 +29,8 @@
 | [`student_attendances`](#tabel%3A-student_attendances)  | Mencatat kehadiran harian siswa secara terpisah, termasuk waktu masuk/keluar, status     |
 | [`teacher_attendances`](#tabel%3A-teacher_attendances)  | Mencatat kehadiran harian guru secara terpisah, termasuk waktu masuk/keluar, status     |
 | [`student_leave_requests`](#tabel%3A-student_leave_requests) | Menyimpan pengajuan izin siswa dari Google Form                        |
- [`teacher_leave_requests`](#-tabel%3A-teacher_leave_requests) | Menyimpan data izin guru, baik dari Google Form maupun input manual admin.
- [`holidays`](#tabel%3A-holidays) | Menyimpan data hari libur untuk mengatasi kesalahan perhitungan data ketika hari libur
+| [`teacher_leave_requests`](#-tabel%3A-teacher_leave_requests) | Menyimpan data izin guru, baik dari Google Form maupun input manual admin.
+| [`holidays`](#tabel%3A-holidays) | Menyimpan data hari libur untuk mengatasi kesalahan perhitungan data ketika hari libur
 | [`notifications`](#tabel%3A-notifications) | Menyimpan log pengiriman pesan WA ke orang tua, wali kelas, dan kesiswaan      |
 | [`discipline_rankings`](#tabel%3A-discipline_rankings) | Peringkat disiplin bulanan siswa                                  |
 | [`users`](#tabel%3A-users)              | Akun login untuk admin, guru, dan petugas lainnya                                 |
@@ -82,10 +82,9 @@ Digunakan sebagai acuan utama untuk:
 | `id`              | BIGINT      | ID unik siswa                            | PK                   |
 | `name`            | VARCHAR     | Nama lengkap siswa                       |                      |
 | `nis`             | VARCHAR     | Nomor Induk Siswa                        | UNIQUE               |
-| `class_id`        | BIGINT      | ID kelas siswa (FK → `classes.id`)       |
-| `major`           | VARCHAR     | Jurusan siswa (contoh: RPL, TKJ)         |                      |
+| `class_id`        | BIGINT      | ID kelas siswa (FK → `classes.id`)       |                      |
 | `gender`          | ENUM        | Jenis kelamin siswa                      | ENUM (`L`, `P`)      |
-| `fingerprint_id`  | VARCHAR     | ID fingerprint (dari mesin absensi)      |                      |
+| `fingerprint_id`  | VARCHAR     | ID fingerprint (dari mesin absensi)      | Indexed              |
 | `photo`           | VARCHAR     | Path/URL ke file foto siswa              |                      |
 | `parent_whatsapp` | VARCHAR     | Nomor WhatsApp orang tua                 |                      |
 | `created_at`      | TIMESTAMP   | Waktu data dibuat                        |                      |
@@ -107,8 +106,9 @@ Biasanya digunakan jika guru juga diminta melakukan absensi secara digital.
 | `id`             | BIGINT      | ID unik guru                                   | PK           |
 | `name`           | VARCHAR     | Nama lengkap guru                              |              |
 | `nip`            | VARCHAR     | Nomor Induk Pegawai (jika ada)                |              |
-| `fingerprint_id` | VARCHAR     | ID fingerprint (jika guru menggunakan absen)   |              |
+| `fingerprint_id` | VARCHAR     | ID fingerprint (jika guru menggunakan absen)   | Indexed      |
 | `photo`          | VARCHAR     | Path/URL ke foto guru                          |              |
+| `whatsapp_number`  | varchar   | Nomor WhatsApp (termasuk wali kelas)           |              |
 | `created_at`     | TIMESTAMP   | Tanggal data dibuat                            |              |
 | `updated_at`     | TIMESTAMP   | Tanggal data diperbarui terakhir               |              |
 ---
@@ -125,7 +125,6 @@ Tabel ini menyimpan catatan absensi khusus untuk siswa.
 | `time_in`        | TIME      | Waktu scan masuk                                           | Optional         |
 | `time_out`       | TIME      | Waktu scan keluar                                          | Optional         |
 | `status`         | ENUM      | `hadir`, `terlambat`, `tidak_hadir`, `izin`               | Otomatis         |
-| `is_late`        | BOOLEAN   | Apakah siswa terlambat                                     | Otomatis         |
 | `photo_in`       | VARCHAR   | Foto hasil verifikasi absensi                              | Optional         |
 | `device_id`  | BIGINT    | ID perangkat yang digunakan untuk scan         | FK → `devices.id`             |
 | `created_at`     | TIMESTAMP | Waktu data dicatat                                         | Otomatis         |
@@ -145,7 +144,6 @@ Tabel ini menyimpan catatan absensi khusus untuk guru/pengajar.
 | `time_in`        | TIME      | Waktu scan masuk                                           | Optional         |
 | `time_out`       | TIME      | Waktu scan keluar                                          | Optional         |
 | `status`         | ENUM      | `hadir`, `terlambat`, `tidak_hadir`, `izin`               | Otomatis         |
-| `is_late`        | BOOLEAN   | Apakah guru terlambat                                      | Otomatis         |
 | `photo_in`       | VARCHAR   | Foto hasil verifikasi absensi                              | Optional         |
 | `device_id`  | BIGINT    | ID perangkat yang digunakan untuk scan         | FK → `devices.id`             |
 | `created_at`     | TIMESTAMP | Waktu data dicatat                                         | Otomatis         |
@@ -178,6 +176,7 @@ Tabel ini menyimpan data izin siswa yang diajukan melalui Google Form, WhatsApp,
 | `submitted_by`| VARCHAR   | Nama pengisi form (bisa siswa atau orang tua)                         |                    |
 | `via`         | ENUM      | Media pengajuan: `form_online` atau lainnya jika ditambahkan          | ENUM               |
 | `created_at`  | TIMESTAMP | Waktu pengajuan izin masuk ke sistem                                  |                    |
+| `updated_at`  | TIMESTAMP | Waktu terakhir data diubah                                 | Otomatis         |
 ---
 
 ### Tabel: `teacher_leave_requests`
@@ -193,6 +192,7 @@ Tabel ini menyimpan data izin kehadiran guru yang dapat diajukan melalui form in
 | `submitted_by` | VARCHAR   | Nama pengaju atau pencatat izin                                  | Optional                      |
 | `via`          | ENUM      | `manual` atau `internal_form`                                    | Menandai metode pengajuan     |
 | `created_at`   | TIMESTAMP | Waktu izin dicatat                                               | Otomatis                      |
+| `updated_at`   | TIMESTAMP | Waktu terakhir data diubah                                 | Otomatis         |
 
 ---
 
@@ -207,6 +207,7 @@ Tabel ini menyimpan data hari libur, baik satu hari maupun rentang libur panjang
 | `end_date`    | DATE      | Tanggal akhir libur (boleh sama dengan `start_date` untuk libur 1 hari)  | Required         |
 | `description` | VARCHAR   | Keterangan libur, contoh: Libur Akhir Semester                           | Required         |
 | `created_at`  | TIMESTAMP | Waktu pencatatan                                                         | Otomatis         |
+| `updated_at`  | TIMESTAMP | Waktu terakhir data diubah                                 | Otomatis         |
 
 ---
 
@@ -228,6 +229,8 @@ Tabel ini menyimpan semua log pengiriman pesan WhatsApp yang dilakukan sistem.
 | `content`     | TEXT      | Isi pesan yang dikirim melalui WhatsApp atau sistem lainnya            |                    |
 | `status`      | ENUM      | Status pengiriman: `sent`, `failed`                                    | ENUM               |
 | `sent_at`     | TIMESTAMP | Waktu saat pesan dikirim                                               |                    |
+| `created_at`  | TIMESTAMP | Waktu data ini dibuat                                                | Otomatis         |
+| `updated_at`  | TIMESTAMP | Waktu terakhir data diubah                                 | Otomatis         |
 ---
 ### Tabel: `discipline_rankings`
 
@@ -243,12 +246,13 @@ Tabel ini menyimpan rekap kedisiplinan siswa dalam satu bulan.
 |----------------|-----------|-----------------------------------------------------------------------|--------------------|
 | `id`           | BIGINT    | ID unik peringkat disiplin                                           | PK                 |
 | `student_id`   | BIGINT    | ID siswa yang direkap                                                | FK → `students.id` |
-| `month`        | VARCHAR   | Bulan perhitungan (misal: `2024-06`)                                 |                    |
+| `month`        | VARCHAR   | Bulan perhitungan (misal: `2024-06`)                                 | Unique Index       |
 | `total_present`| INT       | Jumlah hari hadir                                                    |                    |
 | `total_late`   | INT       | Jumlah hari terlambat                                                |                    |
 | `total_absent` | INT       | Jumlah hari tidak hadir (tidak izin dan tidak scan)                 |                    |
 | `score`        | FLOAT     | Skor akhir disiplin (formula fleksibel, tergantung aturan sekolah)   |                    |
 | `created_at`   | TIMESTAMP | Waktu data ini dibuat                                                |                    |
+| `updated_at`   | TIMESTAMP | Waktu terakhir data diubah                                 | Otomatis         |
 ---
 ### Tabel: `users`
 
@@ -256,7 +260,7 @@ Tabel ini menyimpan akun pengguna sistem (admin, guru, operator, dsb).
 
 **Fungsi-fungsi penting:**
 - Menyimpan data login seperti `email`, `password`, dan nomor WhatsApp
-- Kolom `class_scope` bisa digunakan untuk membatasi akses user ke kelas tertentu (misalnya wali kelas hanya bisa lihat kelasnya)
+- Kolom `class_id` bisa digunakan untuk membatasi akses user ke kelas tertentu (misalnya wali kelas hanya bisa lihat kelasnya)
 - Semua user bisa dikaitkan ke `roles` dan `permissions` melalui tabel pivot
 
 
@@ -264,9 +268,9 @@ Tabel ini menyimpan akun pengguna sistem (admin, guru, operator, dsb).
 |-------------------|-----------|------------------------------------------------------|--------------|
 | `id`              | BIGINT    | ID unik pengguna sistem                             | PK           |
 | `name`            | VARCHAR   | Nama pengguna                                        |              |
-| `email`           | VARCHAR   | Email login (harus unik jika digunakan)             |              |
+| `email`           | VARCHAR   | Email login (harus unik jika digunakan)             | UNIQUE       |
 | `password`        | VARCHAR   | Password terenkripsi                                |              |
-| `class_scope`     | VARCHAR   | Ruang lingkup kelas (opsional, misal: kelas wali)   |              |
+| `class_id`        | BIGINT    | ID kelas (FK → `classes.id`)                        | Nullable     |
 | `whatsapp_number` | VARCHAR   | Nomor WhatsApp user (misal admin, guru, dsb)        |              |
 | `created_at`      | TIMESTAMP | Tanggal dibuat                                       |              |
 | `updated_at`      | TIMESTAMP | Tanggal terakhir diperbarui                          |              |
@@ -370,6 +374,7 @@ Tabel ini mencatat data backup yang dibuat secara otomatis maupun manual.
 | `file_path`   | VARCHAR   | Lokasi file backup disimpan (ZIP, SQL, dsb) |              |
 | `restored`    | BOOLEAN   | Status apakah backup ini pernah di-restore  |              |
 | `created_at`  | TIMESTAMP | Tanggal backup dibuat                       |              |
+| `updated_at`  | TIMESTAMP | Waktu terakhir data diubah                                 | Otomatis         |
 
 ---
 ### Tabel: `settings`
@@ -387,6 +392,7 @@ Tabel ini menyimpan konfigurasi sistem dalam bentuk **key-value** yang fleksibel
 | `key`         | VARCHAR   | Nama pengaturan (misalnya: `wa_api_key`, `device_ips`)     | UNIQUE       |
 | `value`       | TEXT      | Nilai pengaturan (string atau JSON)                        |              |
 | `created_at`  | TIMESTAMP | Waktu konfigurasi disimpan                                 |              |
+| `updated_at`  | TIMESTAMP | Waktu terakhir data diubah                                 | Otomatis         |
 
 
 📎 [Lihat daftar pengaturan lengkap →](./pengaturan-aplikasi.md)
@@ -414,6 +420,7 @@ Tabel ini menyimpan daftar perangkat fingerprint yang terhubung ke sistem.
 | `location`    | VARCHAR   | Lokasi fisik alat                              |              |
 | `is_active`   | BOOLEAN   | Status perangkat (aktif/nonaktif)              |              |
 | `created_at`  | TIMESTAMP | Tanggal data dibuat                            |              |
+| `updated_at`  | TIMESTAMP | Waktu terakhir data diubah                                 | Otomatis         |
 
 ---
 ### Tabel: `attendance_rules`
@@ -437,7 +444,8 @@ Tabel ini menyimpan **aturan jam masuk dan pulang** untuk setiap kelas. Aturan i
 | `time_out_start` | TIME      | Waktu paling awal absensi pulang diterima                                  | Required                      |
 | `time_out_end`   | TIME      | Batas akhir absensi pulang                                                  | Required                      |
 | `description`    | TEXT      | Penjelasan tambahan (contoh: Jadwal Ujian, Shift Jumat)                     | Optional                      |
-| `created_at`     | TIMESTAMP | Waktu data dibuat    
+| `created_at`     | TIMESTAMP | Waktu data dibuat                                                          | Otomatis                      |
+| `updated_at`     | TIMESTAMP | Waktu terakhir data diubah                                 | Otomatis         |
 ---
 ### Tabel: `scan_logs`
 
@@ -452,11 +460,13 @@ Berfungsi sebagai **log jejak absensi**, mencatat siapa saja yang melakukan scan
 | Kolom            | Tipe Data | Keterangan                                               | Sifat Khusus |
 |------------------|-----------|-----------------------------------------------------------|--------------|
 | `id`             | BIGINT    | ID unik log                                              | PK           |
-| `fingerprint_id` | VARCHAR   | ID fingerprint yang digunakan saat scan                  | Required     |
+| `fingerprint_id` | VARCHAR   | ID fingerprint yang digunakan saat scan                  | Required, Indexed |
 | `event_type`     | ENUM      | `scan_in` atau `scan_out`                                | Required     |
-| `scanned_at`     | TIMESTAMP | Waktu saat sidik jari di-scan                            | Required     |
+| `scanned_at`     | TIMESTAMP | Waktu saat sidik jari di-scan                            | Required, Indexed |
 | `device_id`  | BIGINT    | ID alat fingerprint yang digunakan saat scan   | FK → `devices.id`             |
 | `result`         | ENUM      | `success` atau `fail` — menunjukkan apakah scan berhasil | Required     |
+| `created_at`     | TIMESTAMP | Waktu data ini dibuat                                                | Otomatis         |
+| `updated_at`     | TIMESTAMP | Waktu terakhir data diubah                                 | Otomatis         |
 
 ---
 
@@ -476,7 +486,9 @@ Fungsinya menggantikan penggunaan `class` dalam bentuk teks di berbagai tabel se
 | `name`      | VARCHAR   | Nama kelas lengkap (misal: XI RPL 1)                | UNIQUE       |
 | `level`     | VARCHAR   | Jenjang kelas (X, XI, XII)                          |              |
 | `major`     | VARCHAR   | Jurusan kelas (RPL, TKR, TITL, dll)                 |              |
+| `homeroom_teacher_id`| bigint    | Foreign key ke `teachers.id` sebagai wali kelas      |
 | `created_at`| TIMESTAMP | Waktu data kelas dibuat                             |              |
+| `updated_at`| TIMESTAMP | Waktu terakhir data diubah                                 | Otomatis         |
 
 
 ### 📌 ENUM yang digunakan:
@@ -517,6 +529,7 @@ Bagian ini menjelaskan keterkaitan antar tabel dalam sistem absensi fingerprint,
 | `teacher_attendances.teacher_id → teachers.id`      | Mencatat kehadiran harian guru                                             |
 | `teacher_attendances.device_id → devices.id`        | Menyimpan info alat fingerprint yang digunakan guru                        |
 | `teacher_leave_requests.teacher_id → teachers.id` | Menyambungkan izin ke guru yang bersangkutan         |
+| `classes.homeroom_teacher_id → teachers.id` | menghubungkan kelas dengan guru sebagai wali kelas untuk kebutuhan pengiriman rekap otomatis ke WA.|
 
 ---
 
